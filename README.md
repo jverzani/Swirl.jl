@@ -17,7 +17,7 @@ After trying it out, feel free to give it a ⭐ on GitHub!
 - 💾 **Auto-Save Progress**: Your progress is automatically saved after each question
 - 💡 **Smart Hints**: Get detailed, educational hints when you're stuck
 - 🎯 **Multiple Question Types**: Messages, multiple choice, and code evaluation
-- 🌟 **Built-in Content**: Comes with a comprehensive "Julia Basics" course
+- 🌟 **Built-in Content**: Comes with a short "Julia Basics" course
 - 📦 **Custom Courses**: Install courses from `GitHub`, URLs, or local directories
 - 🔄 **Flexible Navigation**: Easy menu navigation with back/exit commands
 - 🎮 **Progress Management**: Reset and retake lessons anytime
