@@ -11,7 +11,7 @@ function safe_eval(code_str::String)
         # Parse the code - this might be multiple statements
         expr = Meta.parse(code_str)
 
-        # Evaluate in Main module so variables persist
+        # Evaluate in Main module so bindings persist
         result = Core.eval(Main, expr)
 
         return (success=true, result=result, error=nothing)
@@ -87,7 +87,7 @@ function check_answer(user_answer::String, expected_answer, question_type::Symbo
                     result=eval_result.result,
                     show_result=true)
             end
-            # Check if they just created a variable and need to access it
+            # Check if they just created a binding and need to access it
         elseif isa(eval_result.result, Vector) && isa(expected_answer, Number)
             # They might have just done the first step (creating the vector)
             # Give them a helpful hint

@@ -405,11 +405,11 @@ function create_basic_julia_course()
     # Lesson 1: Basic Math and Variables
     lesson1 = Lesson(
         "Basic Math and Variables",
-        "Learn basic arithmetic operations and how to assign variables in Julia.",
+        "Learn basic arithmetic operations and how to create bindings in Julia.",
         [
             Question(
                 "Welcome to Swirl for Julia! In this lesson, you'll learn the basics of " *
-                "Julia programming. We'll start with simple math operations and variables.\n\n" *
+                "Julia programming. We'll start with simple math operations and bindings.\n\n" *
                 "Let's begin! Julia can be used as a calculator. Try adding 5 + 3.",
                 :code,
                 8,
@@ -557,7 +557,7 @@ function create_basic_julia_course()
                 "using square brackets. Create a vector with the numbers 1, 2, 3, 4, 5.",
                 :code,
                 [1, 2, 3, 4, 5],
-                "Arrays let you store multiple values in one variable.\n" *
+                "Arrays let you store multiple values under one name.\n" *
                 "Type: [1, 2, 3, 4, 5]\n" *
                 "Use square brackets [ ] with commas separating the values.\n" *
                 "The order matters: [1, 2, 3] is different from [3, 2, 1]!"

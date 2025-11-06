@@ -36,15 +36,15 @@ my_course = Course(
                     "It's known as the City of Light"  # Hint
                 ),
                 
-                # Question 4: Code with variable creation
+                # Question 4: Code with binding creation
                 Question(
-                    "Create a variable x = 10",
+                    "Create a binding x = 10",
                     :code,
                     10,
                     "Type: x = 10"
                 ),
                 
-                # Question 5: Using the variable
+                # Question 5: Using the binding
                 Question(
                     "Multiply x by 2",
                     :code,

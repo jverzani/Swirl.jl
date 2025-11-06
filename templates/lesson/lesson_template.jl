@@ -129,7 +129,7 @@ Tips for Question Design:
 1. CODE QUESTIONS:
    - Be specific about what to type
    - Test your expected answers!
-   - Remember: variables persist between questions
+   - Remember: bindings persist between questions
    - You can build on previous questions
    
 2. MULTIPLE CHOICE:
@@ -181,7 +181,7 @@ function create_example_lesson_loops()
             
             Question(
                 "You can use loops to sum numbers. What is the sum of numbers from 1 to 10?\n" *
-                "Hint: Create a variable 'total = 0', then use a for loop to add each number.",
+                "Hint: Create a binding 'total = 0', then use a for loop to add each number.",
                 :code,
                 55,
                 "total = 0; for i in 1:10; total += i; end; total"
@@ -190,7 +190,7 @@ function create_example_lesson_loops()
             Question(
                 "While loops continue until a condition becomes false. The syntax is:\n" *
                 "while condition\n    # code\nend\n\n" *
-                "Create a variable 'count = 0', then use a while loop to increment it until it reaches 5.",
+                "Create a binding 'count = 0', then use a while loop to increment it until it reaches 5.",
                 :code,
                 5,
                 "count = 0; while count < 5; count += 1; end; count"

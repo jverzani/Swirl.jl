@@ -48,8 +48,9 @@ swirl()
 ```
 
 That's it! The interface will guide you through:
+
 1. Selecting a course
-2. Choosing a lesson  
+2. Choosing a lesson
 3. Working through interactive questions
 
 ## 📖 Usage
@@ -89,21 +90,23 @@ delete_progress()
 
 While working through a lesson, you can use these commands:
 
-| Command | Action |
-|---------|--------|
-| `hint` or `?` | Get a detailed hint for the current question |
-| `skip` | Skip the current question and move to the next |
-| `back` or `menu` | Return to the lesson selection menu |
-| `info` | Show all available commands |
+| Command          | Action                                                   |
+| ---------------- | -------------------------------------------------------- |
+| `hint` or `?`    | Get a detailed hint for the current question             |
+| `skip`           | Skip the current question and move to the next           |
+| `back` or `menu` | Return to the lesson selection menu                      |
+| `info`           | Show all available commands                              |
 | `exit` or `quit` | Exit `Swirl` (returns to `Julia` `REPL`, progress saved) |
 
 ### Navigation
 
 **At the Course Menu:**
+
 - Type a number to select a course
 - Type `0` to exit `Swirl`
 
 **At the Lesson Menu:**
+
 - Type a number to select a lesson
 - Type `0` to go back to course selection
 - Type `reset 1` to reset lesson 1
@@ -148,7 +151,7 @@ Learn basic arithmetic operations and how to create bindings in Julia.
 
 --- Question 1 of 7 ---
 
-Welcome to Swirl for Julia! Let's begin! Julia can be used as a 
+Welcome to Swirl for Julia! Let's begin! Julia can be used as a
 calculator. Try adding 5 + 3.
 
 julia> 5 + 3
@@ -178,23 +181,27 @@ julia> 7 * 6
 `Swirl.jl` comes with the **`Julia` Basics** course, which includes:
 
 #### 1. Basic Math and Bindings
-- Arithmetic operations (+, -, *, /, ^)
+
+- Arithmetic operations (+, -, \*, /, ^)
 - Biding creation and naming
 - Updating bindings
 
 #### 2. Types and Functions
+
 - Understanding `Julia`'s type system
 - Using `typeof()` for type checking
 - Built-in functions (sqrt, abs, etc.)
 - Defining your own simple functions
 
 #### 3. Vectors and Arrays
+
 - Creating arrays with `[]`
 - Array indexing (1-based)
 - Array functions (length, sum, push!, etc.)
 - Using ranges with `:`
 
 Each lesson includes:
+
 - Clear explanations
 - Hands-on exercises
 - Detailed hints
@@ -256,6 +263,7 @@ list_progress()
 ```
 
 Output:
+
 ```
 📊 Your Progress:
 ============================================================
@@ -270,12 +278,14 @@ Output:
 ### Reset a Lesson
 
 **From the Lesson Menu:**
+
 ```
 Select a lesson: reset 2
 ✓ Lesson 'Types and Functions' has been reset!
 ```
 
 **From `Julia` `REPL`:**
+
 ```julia
 reset_lesson_progress("Julia Basics", "Types and Functions")
 ```
@@ -283,6 +293,7 @@ reset_lesson_progress("Julia Basics", "Types and Functions")
 ### Reset All Lessons in a Course
 
 **From the Lesson Menu:**
+
 ```
 Select a lesson: reset all
 Are you sure? yes
@@ -290,6 +301,7 @@ Are you sure? yes
 ```
 
 **From `Julia`:**
+
 ```julia
 reset_course_progress("Julia Basics")
 ```
@@ -299,11 +311,13 @@ reset_course_progress("Julia Basics")
 ### Quick Start
 
 1. **Use the template:**
+
    ```bash
    cp templates/course/course.jl ~/my_course/
    ```
 
 2. **Edit the course:**
+
    ```julia
    Course(
        "My Awesome Course",
@@ -328,11 +342,13 @@ reset_course_progress("Julia Basics")
 ### Question Types
 
 **Message (Information Only):**
+
 ```julia
 Question("Welcome to this lesson!", :message, nothing)
 ```
 
 **Code Execution:**
+
 ```julia
 Question(
     "Calculate 2 + 2",
@@ -343,8 +359,9 @@ Question(
 ```
 
 **Multiple Choice:**
+
 ```julia
-mc(q, choices, correct_idx, hint="") = 
+mc(q, choices, correct_idx, hint="") =
     Question(q, :multiple_choice, correct_idx, hint, choices)
 
 mc(
@@ -356,6 +373,7 @@ mc(
 ```
 
 **Multi-Step Code:**
+
 ```julia
 Question(
     "Create x = 5, then calculate x * 2",
@@ -392,6 +410,7 @@ Swirl.jl/
 ### Code Evaluation
 
 `Swirl.jl` evaluates your `Julia` code in real-time using the `Main` module, so:
+
 - ✅ Bindings you create persist between questions
 - ✅ You can use any `Julia` feature or package
 - ✅ Your code runs in the same environment as your `REPL`
@@ -409,6 +428,7 @@ Swirl.jl/
 ```
 
 Progress is automatically saved:
+
 - After each correct answer
 - When you exit a lesson
 - When you navigate back to menus
@@ -420,6 +440,7 @@ A: Progress is saved in `~/.swirl_julia/progress/` in your home directory. It's 
 
 **Q: Can I restart a completed lesson?**  
 A: Yes! You can either:
+
 - Select the lesson and choose "yes" when asked to restart
 - Type `reset 1` at the lesson menu to reset lesson 1
 - Use `reset_lesson_progress("Course", "Lesson")` from `Julia`
@@ -432,6 +453,7 @@ A: You get 3 attempts per question, and you can always type `hint` for detailed 
 
 **Q: Can I share my custom course?**  
 A: Yes! Push it to `GitHub` and others can install it with:
+
 ```julia
 install_course("https://github.com/username/your-course")
 ```
@@ -463,15 +485,15 @@ Please feel free to open an issue or submit a pull request.
 
 ## 🗺️ Roadmap
 
-- [X] Interactive code evaluation
-- [X] Progress tracking and saving
-- [X] Multiple question types
-- [X] Smart hints system
-- [X] Custom course installation (local, `GitHub`, URL)
-- [X] Course management (install/uninstall)
-- [X] Lesson reset and retake
-- [X] Natural multi-step questions
-- [X] Improved navigation
+- [x] Interactive code evaluation
+- [x] Progress tracking and saving
+- [x] Multiple question types
+- [x] Smart hints system
+- [x] Custom course installation (local, `GitHub`, URL)
+- [x] Course management (install/uninstall)
+- [x] Lesson reset and retake
+- [x] Natural multi-step questions
+- [x] Improved navigation
 - [ ] More built-in courses (intermediate/advanced topics)
 - [ ] Multimedia content support
 - [ ] Achievements and badges
@@ -513,7 +535,7 @@ Start your `Julia` journey today with `swirl()`!
 swirl()                                    # Start learning
 list_progress()                            # See your progress
 
-# Course Management  
+# Course Management
 list_installed_courses()                   # See all courses
 install_course("source")                   # Install course
 uninstall_course("Course Name")            # Remove course
