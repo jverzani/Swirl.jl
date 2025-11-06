@@ -1,0 +1,9 @@
+# Julia temporary files
+*.log
+build/
+doc/build/
+
+# By default, Julia projects don't track the Manifest
+/Manifest.toml
+
+.vscode/
