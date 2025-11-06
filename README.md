@@ -2,21 +2,21 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Learn Julia interactively in your console/terminal, inspired by the [swirl](https://swirlstats.com/) library for R!
+Learn `Julia` interactively in your console/terminal, inspired by the [swirl](https://swirlstats.com/) library for `R`!
 
 ## Overview
 
-Swirl.jl is an interactive learning platform that teaches you Julia programming right in your REPL (Read-Eval-Print Loop). Work through lessons at your own pace, get instant feedback on your answers, and build your Julia skills step by step.
+`Swirl.jl` is an interactive learning platform that teaches you `Julia` programming right in your `REPL` (Read-Eval-Print Loop). Work through lessons at your own pace, get instant feedback on your answers, and build your `Julia` skills step by step.
 
 ## ✨ Features
 
-- 🎓 **Interactive Learning**: Type real Julia code and get immediate feedback
+- 🎓 **Interactive Learning**: Type real `Julia` code and get immediate feedback
 - 📚 **Structured Courses**: Progress through well-designed lessons
 - 💾 **Auto-Save Progress**: Your progress is automatically saved after each question
 - 💡 **Smart Hints**: Get detailed, educational hints when you're stuck
 - 🎯 **Multiple Question Types**: Messages, multiple choice, and code evaluation
 - 🌟 **Built-in Content**: Comes with a comprehensive "Julia Basics" course
-- 📦 **Custom Courses**: Install courses from GitHub, URLs, or local directories
+- 📦 **Custom Courses**: Install courses from `GitHub`, URLs, or local directories
 - 🔄 **Flexible Navigation**: Easy menu navigation with back/exit commands
 - 🎮 **Progress Management**: Reset and retake lessons anytime
 - 🚀 **Natural Interaction**: Multi-step questions and natural code exploration
@@ -93,13 +93,13 @@ While working through a lesson, you can use these commands:
 | `skip` | Skip the current question and move to the next |
 | `back` or `menu` | Return to the lesson selection menu |
 | `info` | Show all available commands |
-| `exit` or `quit` | Exit Swirl (returns to Julia REPL, progress saved) |
+| `exit` or `quit` | Exit `Swirl` (returns to `Julia` `REPL`, progress saved) |
 
 ### Navigation
 
 **At the Course Menu:**
 - Type a number to select a course
-- Type `0` to exit Swirl
+- Type `0` to exit `Swirl`
 
 **At the Lesson Menu:**
 - Type a number to select a lesson
@@ -171,9 +171,9 @@ julia> 7 * 6
 
 ## 📦 Course Structure
 
-### Built-in: Julia Basics
+### Built-in: `Julia` Basics
 
-Swirl.jl comes with the **Julia Basics** course, which includes:
+`Swirl.jl` comes with the **`Julia` Basics** course, which includes:
 
 #### 1. Basic Math and Variables
 - Arithmetic operations (+, -, *, /, ^)
@@ -181,7 +181,7 @@ Swirl.jl comes with the **Julia Basics** course, which includes:
 - Updating variables
 
 #### 2. Types and Functions
-- Understanding Julia's type system
+- Understanding `Julia`'s type system
 - Using `typeof()` for type checking
 - Built-in functions (sqrt, abs, etc.)
 - Defining your own simple functions
@@ -212,7 +212,7 @@ install_course("/path/to/my_course")
 
 ```julia
 # Install directly from a GitHub repository
-install_course("https://github.com/username/course-repo")
+install_course("https://github.com/atantos/course-repo")
 ```
 
 ### From a URL
@@ -258,7 +258,7 @@ Output:
 📊 Your Progress:
 ============================================================
 
-📚 Julia Basics
+📚 `Julia` Basics
   [✓] Basic Math and Variables
       Completed! Score: 7 correct
   [⏳] Types and Functions
@@ -273,7 +273,7 @@ Select a lesson: reset 2
 ✓ Lesson 'Types and Functions' has been reset!
 ```
 
-**From Julia:**
+**From `Julia` `REPL`:**
 ```julia
 reset_lesson_progress("Julia Basics", "Types and Functions")
 ```
@@ -287,7 +287,7 @@ Are you sure? yes
 ✓ All lessons have been reset!
 ```
 
-**From Julia:**
+**From `Julia`:**
 ```julia
 reset_course_progress("Julia Basics")
 ```
@@ -365,7 +365,7 @@ Question(
 
 ## 📚 Course Structure
 
-### Built-in: Julia Basics
+### Built-in: `Julia` Basics
 
 ```
 Swirl.jl/
@@ -389,10 +389,10 @@ Swirl.jl/
 
 ### Code Evaluation
 
-Swirl.jl evaluates your Julia code in real-time using the `Main` module, so:
+`Swirl.jl` evaluates your `Julia` code in real-time using the `Main` module, so:
 - ✅ Variables you create persist between questions
-- ✅ You can use any Julia feature or package
-- ✅ Your code runs in the same environment as your REPL
+- ✅ You can use any `Julia` feature or package
+- ✅ Your code runs in the same environment as your `REPL`
 - ✅ Multi-step questions work naturally
 
 ### Data Storage
@@ -420,22 +420,22 @@ A: Progress is saved in `~/.swirl_julia/progress/` in your home directory. It's 
 A: Yes! You can either:
 - Select the lesson and choose "yes" when asked to restart
 - Type `reset 1` at the lesson menu to reset lesson 1
-- Use `reset_lesson_progress("Course", "Lesson")` from Julia
+- Use `reset_lesson_progress("Course", "Lesson")` from `Julia`
 
-**Q: Will typing 'exit' close my Julia session?**  
-A: No! The `exit` command returns you to the Julia REPL. Your session continues and all variables remain available.
+**Q: Will typing 'exit' close my `Julia` session?**  
+A: No! The `exit` command returns you to the `Julia` `REPL`. Your session continues and all variables remain available.
 
 **Q: What if I make a mistake?**  
 A: You get 3 attempts per question, and you can always type `hint` for detailed help!
 
 **Q: Can I share my custom course?**  
-A: Yes! Push it to GitHub and others can install it with:
+A: Yes! Push it to `GitHub` and others can install it with:
 ```julia
 install_course("https://github.com/username/your-course")
 ```
 
 **Q: How do I uninstall a course?**  
-A: Use `uninstall_course("Course Name")`. Note: Built-in courses like "Julia Basics" cannot be uninstalled.
+A: Use `uninstall_course("Course Name")`. Note: Built-in courses like **`Julia` Basics** cannot be uninstalled.
 
 **Q: Can I modify an installed course?**  
 A: Yes! User-installed courses are stored as files in `~/.swirl_julia/courses/` and can be edited directly.
@@ -456,7 +456,7 @@ Please feel free to open an issue or submit a pull request.
 
 1. Create your course using the templates
 2. Test it thoroughly with `install_course()` and `swirl()`
-3. Push to GitHub
+3. Push to `GitHub`
 4. Share the installation command!
 
 ## 🗺️ Roadmap
@@ -465,7 +465,7 @@ Please feel free to open an issue or submit a pull request.
 - [X] Progress tracking and saving
 - [X] Multiple question types
 - [X] Smart hints system
-- [X] Custom course installation (local, GitHub, URL)
+- [X] Custom course installation (local, `GitHub`, URL)
 - [X] Course management (install/uninstall)
 - [X] Lesson reset and retake
 - [X] Natural multi-step questions
@@ -482,13 +482,9 @@ MIT License - see LICENSE file for details
 
 ## 🙏 Acknowledgments
 
-Inspired by the excellent [swirl](https://swirlstats.com/) package for R, which has helped countless people learn R programming.
+Inspired by the excellent [swirl](https://swirlstats.com/) package for `R`, which has helped countless people learn `R` programming.
 
-Special thanks to the Julia community for creating such an amazing language to teach!
-
-## 👨‍💻 Author
-
-Created with ❤️ for the Julia community
+Special thanks to the `Julia` community for creating and maintaining such an amazing language to teach!
 
 ---
 
@@ -504,7 +500,7 @@ swirl()
 
 **Happy Learning! 🎉**
 
-Start your Julia journey today with `swirl()`!
+Start your `Julia` journey today with `swirl()`!
 
 ---
 
