@@ -402,9 +402,9 @@ end
 Create the built-in Julia Basics course with fundamental lessons.
 """
 function create_basic_julia_course()
-    # Lesson 1: Basic Math and Variables
+    # Lesson 1: Basic Math and Bindings
     lesson1 = Lesson(
-        "Basic Math and Variables",
+        "Basic Math and Bindings",
         "Learn basic arithmetic operations and how to create bindings in Julia.",
         [
             Question(

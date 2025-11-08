@@ -9,7 +9,7 @@ mutable struct Question
     answer::Any
     hint::String
     choices::Vector{String}  # For multiple choice
-    validator::Union{Function, Nothing}  # Custom validation function
+    validator::Union{Function,Nothing}  # Custom validation function
 end
 
 Question(text, type, answer, hint="") = Question(text, type, answer, hint, String[], nothing)
@@ -44,5 +44,6 @@ mutable struct LessonProgress
     attempts::Int
 end
 
-LessonProgress(course::String, lesson::String) = 
+LessonProgress(course::String, lesson::String) =
     LessonProgress(course, lesson, 1, false, 0, 0)
+
