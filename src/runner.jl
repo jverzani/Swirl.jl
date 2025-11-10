@@ -381,9 +381,19 @@ function swirl_repl_handler(input::AbstractString)
                 # Show lesson menu for selected course
                 # Create a temporary lesson state for menu display
                 first_lesson = selected_course.lessons[1]
+
+                # Find the most recently completed lesson to show the indicator correctly
+                last_completed_idx = 0
+                for (i, lesson) in enumerate(selected_course.lessons)
+                    progress = get_lesson_progress(selected_course.name, lesson.name)
+                    if progress.completed
+                        last_completed_idx = i  # Track the highest completed lesson index
+                    end
+                end
+
                 lesson_state = ReplLessonState(
                     selected_course,
-                    1,
+                    last_completed_idx,
                     first_lesson,
                     LessonProgress(selected_course.name, first_lesson.name),
                     1,
