@@ -276,9 +276,9 @@ function display_question(state::ReplLessonState)
     println("\n--- Question $(state.current_question_idx) of $(length(state.lesson.questions)) ---")
     println()
 
-    if question.type == :message
-        println(question.text)
-        println()
+    if isa(question, MessageQ)
+        show_question(question)
+
         # Automatically advance after message - no need to wait for input
         state.waiting_for_message = false
 
@@ -296,23 +296,15 @@ function display_question(state::ReplLessonState)
             println("| 🎉 Congratulations!")
             println("="^60)
             println("You've completed $(state.lesson.name)!")
-            total_questions = count(q -> q.type != :message, state.lesson.questions)
+            #total_questions = count(q -> q.type != :message, state.lesson.questions)
+            total_questions = length(filter(x -> !isa(x, MessageQ), state.lesson.questions))
             println("Score: $(state.progress.correct_answers)/$total_questions")
             println()
 
             display_lesson_menu(state)
         end
     else
-        println(question.text)
-        println()
-
-        if question.type == :multiple_choice && !isempty(question.choices)
-            for (i, choice) in enumerate(question.choices)
-                println("  $i. $choice")
-            end
-            println()
-        end
-
+        show_question(question)
         state.waiting_for_message = false
     end
 
@@ -670,6 +662,7 @@ function process_answer(state::ReplLessonState, input::AbstractString)
     q = state.lesson.questions[state.current_question_idx]
     state.current_attempts += 1
 
+    #=
     result = check_answer(input, q.answer, q.type)
 
     if q.type == :code && result isa NamedTuple
@@ -691,6 +684,28 @@ function process_answer(state::ReplLessonState, input::AbstractString)
         println("✗ Not quite right.")
         handle_incorrect_answer(state)
     end
+    =#
+
+    result = check_answer(input, q)
+    if isa(result, NamedTuple) && result.correct
+        println("✓ Correct! Great work!")
+        println()
+        state.progress.correct_answers += 1
+            advance_to_next_question(state)
+
+    elseif result == true
+        println("✓ Correct!")
+        println()
+        state.progress.correct_answers += 1
+        advance_to_next_question(state)
+    else
+        @show result, q.answer
+        println("✗ Not quite right.")
+        handle_incorrect_answer(state)
+    end
+
+
+
 end
 
 function handle_incorrect_answer(state::ReplLessonState)

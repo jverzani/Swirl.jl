@@ -20,6 +20,7 @@ function safe_eval(code_str::AbstractString)
     end
 end
 
+#=
 """
     check_answer(user_answer, expected_answer, question_type)
 
@@ -56,7 +57,7 @@ function check_answer(user_answer::AbstractString, expected_answer, question_typ
 
     return false
 end
-
+=#
 """
     execute_code_silently(code)
 
