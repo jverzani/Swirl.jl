@@ -52,7 +52,7 @@ end
 abstract type AbstractQuestion end
 function show_question(question::AbstractQuestion)
     txt = isa(question.text, Base.Callable) ? question.text() : question.text
-    display(txt)
+    isa(txt, AbstractString) ? println(txt) : display(txt)
 
     _show_question(question)
 end
@@ -65,13 +65,15 @@ function check_answer(input, question::AbstractQuestion)
     end
 end
 
-
-struct MessageQ <: AbstractQuestion
+abstract type OutputOnly <: AbstractQuestion end
+struct MessageQ <: OutputOnly
     text
 end
 MessageQ(;text="") = MessageQ(text)
 
-# compare ?
+# improvements:
+# * a better comparison?
+# * the REPL doesn't allow multiple-line input
 struct CodeQ <: AbstractQuestion
     text
     answer
@@ -121,9 +123,10 @@ StringQ(;text="", answer="", hint="", validator=nothing) =
 
 function check_answer(user_answer, question::StringQ)
     user_answer = String(user_answer)
-    answer = question.answer
+
     if isa(answer, AbstractString)
-        return user_answer == answer
+        # Strings are bit off with this REPL experience
+        return user_answer == "\"$answer\"" || user_answer == answer
     elseif isa(answer, Regex)
         m = match(answer, user_answer)
         return isnothing(m) ? false : true
@@ -175,7 +178,9 @@ Compares user choice (as an integer) to answer.
 abstract type ChoiceQuestion <: AbstractQuestion end
 function _show_question(question::ChoiceQuestion)
     for (i, choice) in enumerate(question.choices)
-        println("  $i. $choice")
+        txt = isa(choice, Base.Callable) ? choice() : choice
+        print("  $i.")
+        isa(txt, AbstractString) ? println(" ", txt) : display(txt)
     end
     println()
 end

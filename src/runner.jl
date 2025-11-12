@@ -276,7 +276,8 @@ function display_question(state::ReplLessonState)
     println("\n--- Question $(state.current_question_idx) of $(length(state.lesson.questions)) ---")
     println()
 
-    if isa(question, MessageQ)
+    if isa(question, OutputOnly)
+        state.current_question_idx += 1
         show_question(question)
 
         # Automatically advance after message - no need to wait for input
@@ -297,7 +298,7 @@ function display_question(state::ReplLessonState)
             println("="^60)
             println("You've completed $(state.lesson.name)!")
             #total_questions = count(q -> q.type != :message, state.lesson.questions)
-            total_questions = length(filter(x -> !isa(x, MessageQ), state.lesson.questions))
+            total_questions = length(filter(x -> !isa(x, OutputOnly), state.lesson.questions))
             println("Score: $(state.progress.correct_answers)/$total_questions")
             println()
 
@@ -739,7 +740,7 @@ function advance_to_next_question(state::ReplLessonState)
         println("="^60)
         println("You've completed $(state.lesson.name)!")
         #total_questions = count(q -> q.type != :message, state.lesson.questions)
-        total_questions = length(filter(q -> !isa(q, MessageQ), state.lesson.questions))
+        total_questions = length(filter(q -> !isa(q, OutputOnly), state.lesson.questions))
         println("Score: $(state.progress.correct_answers)/$total_questions")
         println()
 
