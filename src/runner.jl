@@ -494,38 +494,74 @@ end
     display_lesson_menu(state)
 """
 function display_lesson_menu(state::ReplLessonState)
-    println("\n" * "="^60)
-    println("Lessons in $(state.course.name):")
-    println("="^60)
+    # Build lesson lines with progress + “current” marker
+    lines = String[]
     for (i, lesson) in enumerate(state.course.lessons)
         progress = get_lesson_progress(state.course.name, lesson.name)
         status = progress.completed ? "✓" : " "
         current = (i == state.current_lesson_idx) ? " ← just completed" : ""
-        println("  $i. [$status] $(lesson.name)$current")
+        push!(lines, "$i. [$status] $(lesson.name)$current")
     end
-    println()
-    println("Commands:")
-    println("  0. Back to course selection")
-    println(" -1. Exit Swirl")
-    println("  reset <number> - Reset a specific lesson (e.g., 'reset 1')")
-    println("  reset all - Reset all lessons in this course")
-    println()
-    println("💡 Type a lesson number or command:")
+    body = """
+# 📘 Lessons in **$(state.course.name)**
+
+$(join(lines, "\n"))
+
+---
+
+### ⚙️ Commands
+- `0` — Back to course selection
+- `-1` — Exit Swirl
+- `reset <number>` — Reset a specific lesson (e.g. `reset 1`)
+- `reset all` — Reset all lessons in this course
+
+💡 **Type a lesson number or command:**
+"""
+    _show(Markdown.parse(body))
     state.waiting_for_menu_choice = true
 end
+
+
 
 """
     display_course_menu(courses)
 """
-function display_course_menu(courses::Vector{Course})
-    println("\nAvailable courses:")
-    for (i, course) in enumerate(courses)
-        println("  $i. $(course.name)")
-    end
-    println(" -1. Exit Swirl")
-    println()
-    println("💡 Select a course (enter number):")
+# function display_course_menu(courses::Vector{Course})
+#     println("\nAvailable courses:")
+#     for (i, course) in enumerate(courses)
+#         println("  $i. $(course.name)")
+#     end
+#     println(" -1. Exit Swirl")
+#     println()
+#     println("💡 Select a course (enter number):")
+# end
+function display_course_menu(state::ReplCourseState)
+    courses = state.courses
+
+    course_lines = isempty(courses) ?
+                   "_No courses installed yet._" :
+                   join(["$(i). $(c.name)" for (i, c) in enumerate(courses)], "\n")
+
+    body = """
+# 🌀 Welcome to **Swirl for Julia!**
+
+*Type `)` to enter Swirl mode.*  
+*(Press backspace anytime to exit Swirl mode.)*
+
+## Available courses
+$course_lines
+
+---
+
+### ⚙️ Commands
+- `-1` — Exit Swirl
+
+💡 **Select a course (enter number):**
+"""
+    display(Markdown.parse(body))
+    state.waiting_for_course_choice = true
 end
+
 
 """
     swirl_repl_handler(input)
@@ -685,7 +721,7 @@ function swirl_repl_handler(input::AbstractString)
                 courses = get_available_courses()
                 course_state = ReplCourseState(courses, true)
                 CURRENT_LESSON_STATE[] = course_state
-                display_course_menu(courses)
+                display_course_menu(course_state)
                 return nothing
             elseif choice >= 1 && choice <= length(state.course.lessons)
                 # Load new lesson

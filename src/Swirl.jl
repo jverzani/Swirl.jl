@@ -73,17 +73,8 @@ function swirl(; use_repl_mode::Symbol=:auto)
         course_state = ReplCourseState(courses, true)
         CURRENT_LESSON_STATE[] = course_state
 
-        # Display welcome and instructions
-        println("\n" * "="^60)
-        println("| Welcome to Swirl for Julia! 🌀")
-        println("="^60)
-        println()
-        println("🌀 Type ')' to enter Swirl mode!")
-        println("   (Press backspace anytime to exit Swirl mode)")
-        println()
-
         # Display course menu
-        display_course_menu(courses)
+        display_course_menu(course_state)
 
         return
     else
