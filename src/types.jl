@@ -105,20 +105,23 @@ end
 
 Match an user answer as strings.
 
-* `answer::{AbstractString, RegExp, Callable}`: The default validtor depends on the type specified for `answer`. For strings an exact match is used, for Regular expressions `match` is used, otherwise `answer` is assumed to be a callable and the user answer is passed to it.
+* `answer::{AbstractString, Regex, Callable}`: The default validtor depends on the type specified for `answer`. For strings an exact match is used, for Regular expressions `match` is used, otherwise `answer` is assumed to be a callable and the user answer is passed to it.
 """
-struct StringQ <: AbstractString
+struct StringQ <: AbstractQuestion
     text
     answer # string, regexp, function
     hint
     validator
 end
+StringQ(;text="", answer="", hint="", validator=nothing) =
+    StringQ(text, answer, hint, validator)
+
 function check_answer(user_answer, question::StringQ)
     user_answer = String(user_answer)
     answer = question.answer
     if isa(answer, AbstractString)
         return user_answer == answer
-    elseif isa(answer, RegExp)
+    elseif isa(answer, Regex)
         m = match(answer, user_answer)
         return isnothing(m) ? false : true
     else # assume callable
@@ -153,7 +156,7 @@ function check_answer(user_answer, question::NumberQ)
     answer = question.answer
     if isa(answer, Number)
         return eval_result.result == answer
-    elseif isa(ans, Tuple)
+    elseif isa(answer, Tuple)
         a, b = extrema(answer)
         return a ≤ eval_result.result ≤ b
     else
