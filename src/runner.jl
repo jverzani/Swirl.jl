@@ -146,10 +146,13 @@ end
 
 # Announce which question if somethign to ask
 function display_lesson_progress(q::AbstractQuestion, state)
+
+    m = count(q->!isa(q, OutputOnly),
+              state.lesson.questions[1:state.current_question_idx])
     n = count(q->isa(q, OutputOnly), state.lesson.questions)
     N = length(state.lesson.questions) - n
 
-    println("\n--- Question $(state.current_question_idx - n) of $N ---")
+    println("\n--- Question $m of $N ---")
     println()
 end
 display_lesson_progress(q::OutputOnly, state) = nothing
