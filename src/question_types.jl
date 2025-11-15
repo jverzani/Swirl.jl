@@ -24,14 +24,34 @@ function check_answer(input, question::AbstractQuestion)
     end
 end
 
+# Question type trait indicating if question type should
+# be scored
+isaquestion(::AbstractQuestion) = true
+
 ## type for display only (must filter out of question count)
 abstract type OutputOnly <: AbstractQuestion end
 check_answer(input, ::OutputOnly) = true
+isaquestion(::OutputOnly) = false
 
+# for a message (doesn't wait for prompt)
 struct MessageQ <: OutputOnly
     text
 end
 MessageQ(;text="") = MessageQ(text)
+
+## Include a file, e.g. one to generate a plot
+## open a link, such as a video, if user says yes
+struct FileIncludeQ <: OutputOnly
+    text
+    file
+end
+FileIncludeQ(;text="", file="") = FileIncludeQ(text, file)
+
+function _show_question(q::FileIncludeQ)
+    Main.include(expanduser(q.file))
+    println("")
+end
+
 
 ## Type for Code questions
 abstract type CodeQuestion <: AbstractQuestion end
@@ -258,6 +278,29 @@ function check_answer(user_input, question::MultipleChoiceQ)
         return false
     end
 end
+
+## open a link, such as a video, if user says yes
+struct LinkQ <: AbstractQuestion
+    text
+    link
+end
+LinkQ(;text="", link="") = LinkQ(text, link)
+
+isaquestion(::LinkQ) = false
+
+function _show_question(::LinkQ)
+    println("")
+    println("Open link? (yes/no)","")
+end
+
+function _check_answer(user_answer::AbstractString, question::LinkQ)
+    if !startswith(lowercase(user_answer), "n" )
+        run(`open $(question.link)`)
+    end
+    return true
+end
+
+
 
 ## ------
 

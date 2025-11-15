@@ -144,13 +144,13 @@ function run_lesson_repl_mode(course_name::String, lesson::Lesson)
     return true
 end
 
-# Announce which question if somethign to ask
+# Announce which question if something to ask
 function display_lesson_progress(q::AbstractQuestion, state)
+    isaquestion(q) || return nothing
 
-    m = count(q->!isa(q, OutputOnly),
+    m = count(isaquestion,
               state.lesson.questions[1:state.current_question_idx])
-    n = count(q->isa(q, OutputOnly), state.lesson.questions)
-    N = length(state.lesson.questions) - n
+    N = count(isaquestion, state.lesson.questions)
 
     println("\n--- Question $m of $N ---")
     println()
@@ -716,6 +716,27 @@ function process_answer(state::ReplLessonState, input::AbstractString)
         return
     end
 
+    if !isaquestion(q)
+        advance_to_next_question(state)
+        return
+    end
+
+    # Regular questions
+    state.current_attempts += 1
+    result = check_answer(input, q)
+
+    res = isa(result, NamedTuple) ?  result.correct : result
+
+    if res == true
+        println("✓ Correct!")
+        println()
+        state.progress.correct_answers += 1
+        advance_to_next_question(state)
+    else
+        println("✗ Not quite right.")
+        handle_incorrect_answer(state)
+    end
+
     #=
     # Regular questions
     state.current_attempts += 1
@@ -743,25 +764,6 @@ function process_answer(state::ReplLessonState, input::AbstractString)
         handle_incorrect_answer(state)
     end
     =#
-
-    state.current_attempts += 1
-    result = check_answer(input, q)
-
-    if isa(result, NamedTuple) && result.correct
-        println("✓ Correct! Great work!")
-        println()
-        state.progress.correct_answers += 1
-            advance_to_next_question(state)
-
-    elseif result == true
-        println("✓ Correct!")
-        println()
-        state.progress.correct_answers += 1
-        advance_to_next_question(state)
-    else
-        println("✗ Not quite right.")
-        handle_incorrect_answer(state)
-    end
 
 end
 
@@ -811,7 +813,7 @@ function lesson_complete_summary(state)
         println("="^60)
         println("You've completed $(state.lesson.name)!")
         #total_questions = count(q -> q.type != :message, state.lesson.questions)
-        total_questions = length(filter(q -> !isa(q, OutputOnly), state.lesson.questions))
+        total_questions = count(isaquestion, state.lesson.questions)
         println("Score: $(state.progress.correct_answers)/$total_questions")
         println()
 end
