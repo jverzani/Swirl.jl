@@ -48,7 +48,8 @@ end
 FileIncludeQ(;text="", file="") = FileIncludeQ(text, file)
 
 function _show_question(q::FileIncludeQ)
-    Main.include(expanduser(q.file))
+    f = expanduser(q.file)
+    isfile(f) &&  Main.include(expanduser(q.file))
     println("")
 end
 
@@ -82,18 +83,20 @@ end
 struct CodeQ <: CodeQuestion
     text
     answer
+    answer_test # swirl.R makes use of this
     hint
     validator
     setup
 end
 
-CodeQ(;text="", answer="", hint="", validator=nothing, setup="") =
-    CodeQ(text, answer, hint, validator, setup)
+CodeQ(;text="", answer="", answer_test="", hint="", validator=nothing, setup="") =
+    CodeQ(text, answer, answer_test, hint, validator, setup)
 
 # multi-step code question
 struct MultistepCodeQ <: CodeQuestion
     text
     answer
+    answer_test
     hint
     steps
     step_hints
@@ -102,8 +105,8 @@ struct MultistepCodeQ <: CodeQuestion
     setup
 end
 
-MultistepCodeQ(;text="", answer="", hint="", validator=nothing,setup="") =
-    MultistepCodeQ(text, answer, hint, validator, setup)
+MultistepCodeQ(;text="", answer="", answer_test="", hint="", validator=nothing,setup="") =
+    MultistepCodeQ(text, answer, answer_test, hint, validator, setup)
 
 function MultistepCodeQ(text::MDLike,
     answer,
@@ -224,9 +227,10 @@ Compares user choice (as an integer) to answer.
 """
 abstract type ChoiceQuestion <: AbstractQuestion end
 function _show_question(question::ChoiceQuestion)
+    println("")
     for (i, choice) in enumerate(question.choices)
         txt = isa(choice, Base.Callable) ? choice() : choice
-        print("  $i.")
+        print("  $i. ")
         _show(txt)
     end
     println()
@@ -271,7 +275,7 @@ MultipleChoiceQ(; text="", choices=String[], answer=Int[], hint="", validator=no
 
 function check_answer(user_input, question::MultipleChoiceQ)
     try
-        user_answer = parse.(Int, split(user_input,","))
+        user_answer = parse.(Int, split(user_input, r",\s*|\s+"))
         return sort(user_answer) == sort(question.answer)
     catch
         println("Answer is the corresponding number(s) for the item(s) you wish to select")
@@ -313,7 +317,7 @@ function Question(text, type, answer, hint="", setup="")
     if type == :message
         return MessageQ(text)
     elseif type == :code
-        return CodeQ(text, answer, hint, validator, setup)
+        return CodeQ(text, answer, "", hint, validator, setup)
     elseif type == :exact
         return NumberQ(text, answer, hint, validator, setup)
     end
@@ -327,7 +331,7 @@ function Question(text, type::Symbol, answer, hint, choices::Vector,
     elseif type == :multiple_choice
         return ChoiceQ(text, choices, answer, hint, validator, setup)
     elseif type == :code
-        return CodeQ(text, answer, hint, validator, setup)
+        return CodeQ(text, answer, "", hint, validator, setup)
     elseif type == :exact
         if isa(answer, Number)
             return NumericQ(text, answer, hint, validator, setup)
@@ -345,7 +349,7 @@ function Question(text::MDLike, ::Val{:multistep_code}, answer, hint::MDLike,
     if isempty(step_hints)
         step_hints = fill("", length(steps))
     end
-    MultistepCodeQ(text, answer, hint,
+    MultistepCodeQ(text, answer, "", hint,
                    steps, step_hints, length(steps),
                    nothing, setup)
 end
