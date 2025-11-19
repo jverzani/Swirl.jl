@@ -1,9 +1,5 @@
 # Core data structures for Swirl
 
-using Markdown
-
-const MDLike = Union{String,Markdown.MD}
-
 
 #=
 """

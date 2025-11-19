@@ -1,18 +1,36 @@
 # Base type for questions
 abstract type AbstractQuestion end
 
+"""
+    show_question(question::AbstractQuestion)
+
+Display a question's text and any question-specific formatting.
+Uses multiple dispatch to customize display for different question types.
+"""
 function show_question(question::AbstractQuestion)
     txt = isa(question.text, Base.Callable) ? question.text() : question.text
     _show(txt)
     _show_question(question)
 end
 
+# Default: no additional display after text
 _show_question(q::AbstractQuestion) = nothing
 
+# Generic version - takes only question, no state
+"""
+    _show_hint(q::AbstractQuestion [, state])
+
+Display hint for a question. 
+For most questions, uses the hint field directly.
+For multistep questions, may need state to show step-specific hints.
+"""
 function _show_hint(q::AbstractQuestion)
     hint = isa(q.hint, Base.Callable) ? q.hint() : q.hint
     if !isempty(hint)
-        print("💡 Hint: "); _show(hint)
+        print("💡 Hint: ")
+        _show(hint)
+    else
+        println("💡 No hint available for this question.")
     end
 end
 
@@ -25,18 +43,41 @@ function check_answer(input, question::AbstractQuestion)
 end
 
 ## type for display only (must filter out of question count)
+"""
+    OutputOnly <: AbstractQuestion
+
+Abstract type for questions that only display information (no answer required).
+These questions are not counted in scoring.
+"""
 abstract type OutputOnly <: AbstractQuestion end
+
+# OutputOnly questions always return true (no wrong answer)
 check_answer(input, ::OutputOnly) = true
 
+"""
+    MessageQ <: OutputOnly
+    
+Display a message to the user with no answer required.
+"""
 struct MessageQ <: OutputOnly
     text
 end
-MessageQ(;text="") = MessageQ(text)
 
-## Type for Code questions
+# Constructor with keyword argument (not necessary but for consistency  with others)
+MessageQ(; text="") = MessageQ(text)
+
+
+"""
+    CodeQuestion <: AbstractQuestion
+
+Abstract base type for questions that require code execution.
+"""
 abstract type CodeQuestion <: AbstractQuestion end
 
-# default validator for code
+"""
+Default validator for code questions.
+Executes the code and compares the result to the expected answer.
+"""
 function _check_answer(user_answer::AbstractString, question::CodeQuestion)
     user_answer = String(user_answer)
     eval_result = safe_eval(user_answer)
@@ -59,6 +100,28 @@ function _check_answer(user_answer::AbstractString, question::CodeQuestion)
 end
 
 # Single step code question
+"""
+    CodeQ <: CodeQuestion
+
+Single-step code question. User enters one expression (or semicolon-separated expressions)
+and the result is checked against the expected answer.
+
+# Fields
+- `text`: Question text (String or Markdown)
+- `answer`: Expected result value
+- `hint`: Hint text to display if user asks for help
+- `validator`: Optional custom validation function(input, answer) -> Bool
+- `setup`: Optional code to run before question (e.g., to restore variables)
+
+# Example
+```julia
+CodeQ(
+    text = "Calculate the square root of 16",
+    answer = 4.0,
+    hint = "Use the sqrt() function"
+)
+```
+"""
 struct CodeQ <: CodeQuestion
     text
     answer
@@ -67,10 +130,48 @@ struct CodeQ <: CodeQuestion
     setup
 end
 
-CodeQ(;text="", answer="", hint="", validator=nothing, setup="") =
+# Constructor with keyword arguments and defaults
+CodeQ(; text="", answer="", hint="", validator=nothing, setup="") =
     CodeQ(text, answer, hint, validator, setup)
 
-# multi-step code question
+
+"""
+    MultistepCodeQ <: CodeQuestion
+
+Multi-step code question. User enters code across multiple prompts (like a REPL session).
+Each step can have its own prompt and hint.
+
+# Fields
+- `text`: Initial question text
+- `answer`: Expected final result (or nothing if only execution matters)
+- `hint`: General hint for the overall question
+- `steps`: Vector of step-specific prompts
+- `step_hints`: Vector of hints for each step
+- `required_steps`: Number of steps that must be completed
+- `validator`: Optional custom validation function
+- `setup`: Optional setup code
+
+# Example
+```julia
+MultistepCodeQ(
+    text = "Create a function to calculate factorial",
+    answer = 120,  # factorial(5)
+    hint = "Use recursion or a loop",
+    steps = [
+        "Define the function signature",
+        "Implement the base case", 
+        "Implement the recursive case",
+        "Test with factorial(5)"
+    ],
+    step_hints = [
+        "factorial(n) = ...",
+        "When n == 0 or n == 1, return 1",
+        "Otherwise return n * factorial(n-1)",
+        "Just call: factorial(5)"
+    ]
+)
+```
+"""
 struct MultistepCodeQ <: CodeQuestion
     text
     answer
@@ -82,9 +183,12 @@ struct MultistepCodeQ <: CodeQuestion
     setup
 end
 
-MultistepCodeQ(;text="", answer="", hint="", validator=nothing,setup="") =
-    MultistepCodeQ(text, answer, hint, validator, setup)
+# Constructor with keyword arguments
+MultistepCodeQ(; text="", answer="", hint="", steps=[], step_hints=[],
+    required_steps=0, validator=nothing, setup="") =
+    MultistepCodeQ(text, answer, hint, steps, step_hints, required_steps, validator, setup)
 
+# Convenience constructor from vectors
 function MultistepCodeQ(text::MDLike,
     answer,
     hint::MDLike,
@@ -99,8 +203,8 @@ function MultistepCodeQ(text::MDLike,
         nothing, setup)
 end
 
-function _show_hint(q::MultistepCodeQ)
-    # For multistep questions, show step-specific hint
+# Specialized version for multistep - takes both question AND state needed for handle_hint()
+function _show_hint(q::MultistepCodeQ, state)
     step = state.multistep_current_step
     if step <= length(q.step_hints) && !isempty(q.step_hints[step])
         println("💡 Hint:")
@@ -113,14 +217,29 @@ function _show_hint(q::MultistepCodeQ)
     end
 end
 
-
 """
-    StringQ(text, answer, hint, [validator])
+    StringQ(text, answer, hint, [validator]) <: AbstractQuestion
 
-Match an user answer as strings.
+Match user answer as string. Supports exact matching, regex matching, or custom validators.
 
+# Fields
 * `text::{StringLike, Callable}`: text to display before question prompt; callable values are called with no arguments prior.
 * `answer::{AbstractString, Regex, Callable}`: The default validtor depends on the type specified for `answer`. For strings an exact match is used, for Regular expressions `match` is used, otherwise `answer` is assumed to be a callable and the user answer is passed to it.
+* `hint`: Hint text
+* `validator`: Optional custom validator (overrides answer-based matching)
+* `setup`: Optional setup code
+
+# Examples
+```julia
+# Exact match
+StringQ(text="What is the capital of France?", answer="Paris")
+
+# Regex match  
+StringQ(text="Name a programming language", answer=r"Julia|Python|Rust")
+
+# Custom validator
+StringQ(text="Enter a greeting", answer = s -> startswith(lowercase(s), "hello"))
+```
 """
 struct StringQ <: AbstractQuestion
     text
@@ -129,7 +248,7 @@ struct StringQ <: AbstractQuestion
     validator
     setup
 end
-StringQ(;text="", answer="", hint="", validator=nothing, setup="") =
+StringQ(; text="", answer="", hint="", validator=nothing, setup="") =
     StringQ(text, answer, hint, validator, setup)
 
 function check_answer(user_input, question::StringQ)
@@ -156,28 +275,28 @@ end
 
 
 """
-    NumberQ(text, answer, hint, [validator])
+    NumericQ(text, answer, hint, [validator]) <: AbstractQuestion
 
 Compare answer numerically
 
 * `answer::{Number, Tuple, Container}:` The default validation depends on the type of the sepcified `answer`. If answer is a number, an exact match on the user answer is made; if answer is a tuple, it is assumed to specify an interval, `(a,b)`, for which `a ≤ user_answer ≤ b` return true; otherwise, the test is `user_answer ∈ answer`, that is `answer` is a container of possible correct answers.
 """
-struct NumberQ <: AbstractQuestion
+struct NumericQ <: AbstractQuestion
     text
     answer # number, tuple--interval, container
     hint
     validator
     setup
 end
-NumberQ(;text="", answer=Inf, hint="", validator=nothing, setup="") =
-    NumberQ(text, answer, hint, validator, setup)
+NumericQ(; text="", answer=Inf, hint="", validator=nothing, setup="") =
+    NumericQ(text, answer, hint, validator, setup)
 
 # default is user_answer == answer
-function check_answer(user_answer, question::NumberQ)
+function check_answer(user_answer, question::NumericQ)
 
     eval_result = safe_eval(user_answer)
     if !eval_result.success
-            return (correct=false, message="Error: $(eval_result.error)")
+        return (correct=false, message="Error: $(eval_result.error)")
     elseif !isa(eval_result.result, Number)
         return (correct=false, message="Error: answer is not a number")
     end
@@ -203,6 +322,8 @@ Compares user choice (as an integer) to answer.
 
 """
 abstract type ChoiceQuestion <: AbstractQuestion end
+
+# Display choices after question text
 function _show_question(question::ChoiceQuestion)
     for (i, choice) in enumerate(question.choices)
         txt = isa(choice, Base.Callable) ? choice() : choice
@@ -212,10 +333,26 @@ function _show_question(question::ChoiceQuestion)
     println()
 end
 
+"""
+    ChoiceQ <: ChoiceQuestion
+
+Single-choice question. User selects one option by entering its number.
+Replaces the old :multiple_choice type (which was actually single choice).
+
+# Example
+```julia
+ChoiceQ(
+    text = "Which is the largest planet?",
+    choices = ["Earth", "Mars", "Jupiter", "Saturn"],
+    answer = 3,  # Jupiter
+    hint = "Think about gas giants"
+)
+```
+"""
 struct ChoiceQ <: ChoiceQuestion
     text
     choices  # Vector{String}
-    answer::Int
+    answer::Int  # Index of correct choice
     hint
     validator
     setup
@@ -234,50 +371,106 @@ function check_answer(user_input, question::ChoiceQ)
 end
 
 """
-    MultipleChoiceQ(text, choices, answer::Vector{Int}, hint, [validator])
+    MultipleChoiceQ(text, choices, answer::Vector{Int}, hint, [validator]) <: ChoiceQuestion
+
+Multiple-choice question where user can select multiple options.
+User enters comma-separated numbers (e.g., "1,3,4").
 
 Default compares users choices (as a comma separated set of integers) to the answer specified as a vector of integers (after sorting).
+
+# Example
+```julia
+MultipleChoiceQ(
+    text = "Which are prime numbers?",
+    choices = ["4", "5", "6", "7", "8", "9"],
+    answer = [2, 4],  # 5 and 7
+    hint = "Numbers only divisible by 1 and themselves"
+)
+```
 """
 struct MultipleChoiceQ <: ChoiceQuestion
     text
     choices  # Vector{String}
-    answer   # Vector{Int}
+    answer   # Vector{Int} - indices of correct choices
     hint
     validator
     setup
 end
+
+
 MultipleChoiceQ(; text="", choices=String[], answer=Int[], hint="", validator=nothing, setup="") =
     MultipleChoiceQ(text, choices, answer, hint, validator, setup)
 
 function check_answer(user_input, question::MultipleChoiceQ)
     try
-        user_answer = parse.(Int, split(user_input,","))
+        user_answer = parse.(Int, split(user_input, ","))
         return sort(user_answer) == sort(question.answer)
     catch
-        println("Answer is the corresponding number(s) for the item(s) you wish to select")
+        println("Please enter comma-separated numbers for your selections (e.g., '1,3,4')")
         return false
     end
 end
 
-## ------
+# ============================================================================
+# Backward Compatibility - Old Question() Constructor Style
+# ============================================================================
 
-# code to handle swirl.R-type question style
+"""
+    Question
+
+The actual Question() constructors return appropriate typed questions.
+"""
 struct Question
 end
 
-function Question(text, type, answer, hint="", setup="")
+"""
+    Question(text, type::Symbol, answer, hint="", setup="")
+
+Backward-compatible constructor that returns appropriate question type.
+Converts old `:type` symbol style to new dispatch-based types.
+
+# Supported types
+- `:message` -> MessageQ
+- `:code` -> CodeQ  
+- `:exact` -> StringQ or NumberQ (depending on answer type)
+
+# Examples
+```julia
+# These old-style calls:
+Question("Hello!", :message, nothing)
+Question("Calculate 2+2", :code, 4, "Add them")
+Question("What is the capital?", :exact, "Paris", "Think France")
+
+# Are equivalent to:
+MessageQ("Hello!")
+CodeQ(text="Calculate 2+2", answer=4, hint="Add them")
+StringQ(text="What is the capital?", answer="Paris", hint="Think France")
+```
+"""
+function Question(text, type::Symbol, answer, hint="", setup="")
     validator = nothing
     if type == :message
         return MessageQ(text)
     elseif type == :code
         return CodeQ(text, answer, hint, validator, setup)
     elseif type == :exact
-        return NumberQ(text, answer, hint, validator, setup)
+        if isa(answer, Number)
+            return NumberQ(text, answer, hint, validator, setup)
+        else
+            return StringQ(text, answer, hint, validator, setup)
+        end
+    else
+        error("Unknown question type: $type. Use :message, :code, or :exact (or use typed constructors directly)")
     end
 end
 
+"""
+    Question(text, type::Symbol, answer, hint, choices::Vector, validator=nothing, setup="")
+
+Backward-compatible constructor for questions with choices.
+"""
 function Question(text, type::Symbol, answer, hint, choices::Vector,
-                  validator=nothing, setup="")
+    validator=nothing, setup="")
 
     if type == :message
         return MessageQ(text)
@@ -296,13 +489,18 @@ function Question(text, type::Symbol, answer, hint, choices::Vector,
     end
 end
 
+"""
+    Question(text, Val{:multistep_code}, answer, hint, steps, step_hints=[], setup="")
+
+Backward-compatible constructor for multistep code questions.
+"""
 function Question(text::MDLike, ::Val{:multistep_code}, answer, hint::MDLike,
-                  steps::Vector, step_hints::Vector=MDLike[],
-                  setup::String="")
+    steps::Vector, step_hints::Vector=MDLike[],
+    setup::String="")
     if isempty(step_hints)
         step_hints = fill("", length(steps))
     end
     MultistepCodeQ(text, answer, hint,
-                   steps, step_hints, length(steps),
-                   nothing, setup)
+        steps, step_hints, length(steps),
+        nothing, setup)
 end

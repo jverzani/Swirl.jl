@@ -1,10 +1,5 @@
 # runner.jl — lesson runners + REPL handler (with lesson navigation and course selection)
 
-# Markdown-aware show helper
-_show(x::AbstractString) = println(x)
-_show(x::Markdown.MD) = display(x)
-_show(x) = display(x)
-
 """
     run_question_setup(question)
 
@@ -146,8 +141,14 @@ end
 
 # Announce which question if somethign to ask
 function display_lesson_progress(q::AbstractQuestion, state)
-    n = count(q->isa(q, OutputOnly), state.lesson.questions)
-    N = length(state.lesson.questions) - n
+    # n = count(q -> isa(q, OutputOnly), state.lesson.questions)
+    if state.current_question_idx == 1
+        n = 0
+    else
+        n = count(q -> isa(q, OutputOnly), state.lesson.questions[1:state.current_question_idx-1])
+    end
+    # Total non-OutputOnly questions
+    N = count(q -> !isa(q, OutputOnly), state.lesson.questions)
 
     println("\n--- Question $(state.current_question_idx - n) of $N ---")
     println()
@@ -172,38 +173,39 @@ function display_question(state::ReplLessonState)
         show_question(question)
         println()
 
-        # Automatically advance after message - no need to wait for input
-        state.waiting_for_message = false
-
-        # Check if this is the last question and complete if so
-        if state.current_question_idx >= length(state.lesson.questions)
-            state.current_question_idx += 1
-            state.progress.current_question = state.current_question_idx
-            save_lesson_progress(state.progress)
-
-            # Lesson completed!
-            lesson_complete_summary(state)
-
-            # Automatically show the menu
-            display_lesson_menu(state)
-        else
-            state.current_question_idx += 1
-            display_question(state)
-        end
+        # Auto-advance to next question (I changed that to be consistent wrt the advancement)
+        advance_to_next_question(state)
+        return  # Important: return here to avoid showing next question twice
 
     elseif isa(question, MultistepCodeQ)
-        # For multistep questions, show current step
+        # Initialize or resume multistep state
+        if !haskey(state.progress.multistep_state, state.current_question_idx)
+            state.multistep_current_step = 1
+            state.multistep_code_lines = String[]
+            state.progress.multistep_state[state.current_question_idx] = 1
+        else
+            state.multistep_current_step = state.progress.multistep_state[state.current_question_idx]
+            # Note: Can't restore code_lines from previous session
+            state.multistep_code_lines = String[]
+        end
 
-        println("Multi-step question - Enter code line by line.")
-        println("   Type 'done' when finished, 'hint' for help, 'skip' to skip.")
+        # Show initial question text on first step
+        if state.multistep_current_step == 1
+            run_question_setup(question)
+            show_question(question)
+        end
+        println("\n🔢 Multi-step question - Enter code line by line.")
+        println("   Commands:")
+        println("   • 'done'             - Submit your code")
+        println("   • 'hint'             - Get help for current step")
+        println("   • 'skip'             - Skip this question")
+        println("   • 'restart question' - Restart from step 1")
+        println("   • 'menu'             - Return to lesson menu")
+        println()
         if state.multistep_current_step <= question.required_steps
             # Show step-specific prompt if available
             if state.multistep_current_step <= length(question.steps) &&
-                   !isempty(question.steps[state.multistep_current_step])
-                println()
-                println("Step $(state.multistep_current_step) of $(question.required_steps):")
-                _show(question.steps[state.multistep_current_step])
-            else
+               !isempty(question.steps[state.multistep_current_step])
                 println()
                 println("Step $(state.multistep_current_step) of $(question.required_steps):")
                 _show(question.steps[state.multistep_current_step])
@@ -517,6 +519,11 @@ function swirl_repl_handler(input::AbstractString)
         handle_restart(state)
         return nothing
     end
+    # Added support for 'restart question' command
+    if low == "restart question" || low == "rq"
+        handle_restart_question(state)
+        return nothing
+    end
     if low in ["exit", "quit", "bye"]
         handle_exit(state)
         return nothing
@@ -542,33 +549,42 @@ function swirl_repl_handler(input::AbstractString)
     return nothing
 end
 
+"""
+    handle_hint(state)
+
+Display hint for the current question using dispatch-based hint system.
+"""
 function handle_hint(state::ReplLessonState)
     q = state.lesson.questions[state.current_question_idx]
-    _show_hint(q)
-
-    #=
-    # For multistep questions, show step-specific hint
-    if q.type == :multistep_code
-        step = state.multistep_current_step
-        if step <= length(q.step_hints) && !isempty(q.step_hints[step])
-            println("💡 Hint:")
-            _show(q.step_hints[step])
-        elseif !isempty(q.hint)
-            println("💡 Hint:")
-            _show(q.hint)
-        else
-            println("No hint available for this step.")
-        end
+    if isa(q, MultistepCodeQ)
+        _show_hint(q, state)  # ← Pass state for multistep
     else
-        if !isempty(String(q.hint)) || (q.hint isa Markdown.MD)
-            print("💡 Hint: ")
-            _show(q.hint)
-        else
-            println("No hint available for this question.")
-        end
+        _show_hint(q)  # ← Don't pass state for others
     end
-    =#
 end
+#=
+# For multistep questions, show step-specific hint
+if q.type == :multistep_code
+    step = state.multistep_current_step
+    if step <= length(q.step_hints) && !isempty(q.step_hints[step])
+        println("💡 Hint:")
+        _show(q.step_hints[step])
+    elseif !isempty(q.hint)
+        println("💡 Hint:")
+        _show(q.hint)
+    else
+        println("No hint available for this step.")
+    end
+else
+    if !isempty(String(q.hint)) || (q.hint isa Markdown.MD)
+        print("💡 Hint: ")
+        _show(q.hint)
+    else
+        println("No hint available for this question.")
+    end
+end
+=#
+
 
 function handle_reset_lesson_repl(state::ReplLessonState, input::AbstractString)
     # Parse lesson number from "reset 1", "reset 2", etc.
@@ -629,6 +645,11 @@ function handle_exit(state::ReplLessonState)
     CURRENT_LESSON_STATE[] = nothing
 end
 
+"""
+    process_answer(state, input)
+
+Process user's answer using dispatch-based check_answer.
+"""
 function process_answer(state::ReplLessonState, input::AbstractString)
     input = String(input)
     q = state.lesson.questions[state.current_question_idx]
@@ -648,7 +669,7 @@ function process_answer(state::ReplLessonState, input::AbstractString)
 
             if final_result.success
                 if q.answer === nothing || final_result.result == q.answer
-                    println("Correct! You've completed all steps successfully!")
+                    println("✓ Correct! You've completed all steps successfully!")
                     println()
                     state.progress.correct_answers += 1
                     # Reset multistep state
@@ -656,7 +677,7 @@ function process_answer(state::ReplLessonState, input::AbstractString)
                     state.multistep_code_lines = String[]
                     advance_to_next_question(state)
                 else
-                    println("All steps executed, but result doesn't match expected.")
+                    println("✗ All steps executed, but result doesn't match expected.")
                     println("Your result: $(final_result.result)")
                     println("Expected: $(q.answer)")
                     println()
@@ -678,7 +699,7 @@ function process_answer(state::ReplLessonState, input::AbstractString)
         eval_result = safe_eval(input)
 
         if !eval_result.success
-            println("Error: $(eval_result.error)")
+            println("✗ Error: $(eval_result.error)")
             println("Try again, or type 'hint' for help.")
             return
         end
@@ -693,15 +714,15 @@ function process_answer(state::ReplLessonState, input::AbstractString)
 
         # Move to next step
         state.multistep_current_step += 1
+        # Storing progress on a step level
+        state.progress.multistep_state[state.current_question_idx] = state.multistep_current_step
+        save_lesson_progress(state.progress)
 
         if state.multistep_current_step <= q.required_steps
             # Show next step prompt
             println()
             if state.multistep_current_step <= length(q.steps) &&
                !isempty(q.steps[state.multistep_current_step])
-                println("Step $(state.multistep_current_step) of $(q.required_steps):")
-                _show(q.steps[state.multistep_current_step])
-            else
                 println("Step $(state.multistep_current_step) of $(q.required_steps):")
                 _show(q.steps[state.multistep_current_step])
             end
@@ -741,15 +762,23 @@ function process_answer(state::ReplLessonState, input::AbstractString)
     end
     =#
 
+    # Regular questions (non-multistep) (I comment this here for clarity)
     state.current_attempts += 1
+
+    # Use dispatch-based check_answer
     result = check_answer(input, q)
 
-    if isa(result, NamedTuple) && result.correct
-        println("✓ Correct! Great work!")
-        println()
-        state.progress.correct_answers += 1
+    if isa(result, NamedTuple)
+        if result.correct
+            println("✓ Correct! Great work!")
+            println()
+            state.progress.correct_answers += 1
             advance_to_next_question(state)
-
+        else
+            # Show the error message from code evaluation
+            println("✗ $(result.message)")
+            handle_incorrect_answer(state)
+        end
     elseif result == true
         println("✓ Correct!")
         println()
@@ -762,6 +791,11 @@ function process_answer(state::ReplLessonState, input::AbstractString)
 
 end
 
+"""
+    handle_incorrect_answer(state)
+
+Handle an incorrect answer - either allow retry or show correct answer.
+"""
 function handle_incorrect_answer(state::ReplLessonState)
     if state.current_attempts < state.max_attempts
         rem = state.max_attempts - state.current_attempts
@@ -769,15 +803,23 @@ function handle_incorrect_answer(state::ReplLessonState)
     else
         q = state.lesson.questions[state.current_question_idx]
         println("\n⏭ The correct answer was: $(q.answer)")
-        if !isempty(q.hint)
-            println("💡 $(q.hint)")
+        # Show hint using dispatch
+        if isa(q, MultistepCodeQ)
+            _show_hint(q, state)
+        else
+            _show_hint(q)
+            println()
+            advance_to_next_question(state)
         end
-        println()
-        advance_to_next_question(state)
     end
 end
 
 function advance_to_next_question(state::ReplLessonState)
+    # Save multistep state before advancing
+    if state.multistep_current_step > 1
+        state.progress.multistep_state[state.current_question_idx] = state.multistep_current_step
+    end
+
     # Reset multistep state when advancing
     state.multistep_current_step = 1
     state.multistep_code_lines = String[]
@@ -799,18 +841,20 @@ function advance_to_next_question(state::ReplLessonState)
 end
 
 function lesson_complete_summary(state)
-        state.progress.completed = true
-        save_lesson_progress(state.progress)
-        state.lesson_complete = true
+    state.progress.completed = true
+    save_lesson_progress(state.progress)
+    state.lesson_complete = true
 
-        println("\n" * "="^60)
-        println("| Congratulations!")
-        println("="^60)
-        println("You've completed $(state.lesson.name)!")
-        #total_questions = count(q -> q.type != :message, state.lesson.questions)
-        total_questions = length(filter(q -> !isa(q, OutputOnly), state.lesson.questions))
-        println("Score: $(state.progress.correct_answers)/$total_questions")
-        println()
+    println("\n" * "="^60)
+    println("| Congratulations!")
+    println("="^60)
+    println("You've completed $(state.lesson.name)!")
+
+    # Count only non-OutputOnly questions for scoring
+    total_questions = count(q -> !isa(q, OutputOnly), state.lesson.questions)
+
+    println("Score: $(state.progress.correct_answers)/$total_questions")
+    println()
 end
 
 # Backward-compatibility aliases
