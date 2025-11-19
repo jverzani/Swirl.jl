@@ -185,8 +185,10 @@ end
 
 # Constructor with keyword arguments
 MultistepCodeQ(; text="", answer="", hint="", steps=[], step_hints=[],
-    required_steps=0, validator=nothing, setup="") =
-    MultistepCodeQ(text, answer, hint, steps, step_hints, required_steps, validator, setup)
+    required_steps=nothing, validator=nothing, setup="") =
+    MultistepCodeQ(text, answer, hint, steps, step_hints,
+        isnothing(required_steps) ? length(steps) : required_steps,
+        validator, setup)
 
 # Convenience constructor from vectors
 function MultistepCodeQ(text::MDLike,

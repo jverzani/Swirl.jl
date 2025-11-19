@@ -714,6 +714,8 @@ function process_answer(state::ReplLessonState, input::AbstractString)
 
         # Move to next step
         state.multistep_current_step += 1
+
+
         # Storing progress on a step level
         state.progress.multistep_state[state.current_question_idx] = state.multistep_current_step
         save_lesson_progress(state.progress)
