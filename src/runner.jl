@@ -143,8 +143,12 @@ end
 function display_lesson_progress(q::AbstractQuestion, state)
     isaquestion(q) || return nothing
 
-    m = count(isaquestion,
-        state.lesson.questions[1:state.current_question_idx])
+    # Count questions BEFORE current one, then add 1 for current question number
+    m = if state.current_question_idx == 1
+        1
+    else
+        count(isaquestion, state.lesson.questions[1:state.current_question_idx-1]) + 1
+    end
     N = count(isaquestion, state.lesson.questions)
 
     println("\n--- Question $m of $N ---")
@@ -298,6 +302,8 @@ end
 
 """
     swirl_repl_handler(input)
+
+Main input handler for Swirl's REPL mode (powered by ReplMaker.jl).
 """
 function swirl_repl_handler(input::AbstractString)
     input = String(strip(input))
@@ -633,6 +639,27 @@ function handle_restart(state::ReplLessonState)
     display_question(state)
 end
 
+"""
+    handle_restart_question(state)
+
+Restart the current question (useful for multistep questions).
+"""
+function handle_restart_question(state::ReplLessonState)
+    q = state.lesson.questions[state.current_question_idx]
+    if isa(q, MultistepCodeQ)
+        println("\n🔄 Restarting question from step 1...")
+        state.multistep_current_step = 1
+        state.multistep_code_lines = String[]
+        state.current_attempts = 0
+        state.progress.multistep_state[state.current_question_idx] = 1
+        save_lesson_progress(state.progress)
+        display_question(state)
+    else
+        println("This command is only available for multi-step questions.")
+        println("Use 'skip' to move to the next question or 'restart' to restart the entire lesson.")
+    end
+end
+
 function handle_exit(state::ReplLessonState)
     state.progress.current_question = state.current_question_idx
     save_lesson_progress(state.progress)
@@ -733,11 +760,12 @@ function process_answer(state::ReplLessonState, input::AbstractString)
         return
     end
 
+
     # Regular questions
-    result = check_answer(input, q)
     state.current_attempts += 1
+    result = check_answer(input, q)
 
-
+    # Determine if answer is correct
     res = isa(result, NamedTuple) ? result.correct : result
 
     if res == true
@@ -749,67 +777,44 @@ function process_answer(state::ReplLessonState, input::AbstractString)
         advance_to_next_question(state)
     else
         if isaquestion(q)
-            println("✗ Not quite right.")
+            # Show appropriate error message
+            if isa(result, NamedTuple)
+                println("✗ $(result.message)")
+            else
+                println("✗ Not quite right.")
+            end
         end
         handle_incorrect_answer(state)
     end
-
-    #=
-    # Regular questions
-    state.current_attempts += 1
-
-
-    result = check_answer(input, q.answer, q.type)
-
-    if q.type == :code && result isa NamedTuple
-        if result.correct
-            println("Correct! $(q.type == :code ? "Great work!" : "")")
-            println()
-            state.progress.correct_answers += 1
-            advance_to_next_question(state)
-        else
-            println("$(result.message)")
-            handle_incorrect_answer(state)
-        end
-    elseif result == true || (result isa Bool && result)
-        println("Correct!")
-        println()
-        state.progress.correct_answers += 1
-        advance_to_next_question(state)
-    else
-        println("Not quite right.")
-        handle_incorrect_answer(state)
-    end
-    =#
-
-    # Regular questions (non-multistep) (I comment this here for clarity)
-    state.current_attempts += 1
-
-    # Use dispatch-based check_answer
-    result = check_answer(input, q)
-
-    if isa(result, NamedTuple)
-        if result.correct
-            println("✓ Correct! Great work!")
-            println()
-            state.progress.correct_answers += 1
-            advance_to_next_question(state)
-        else
-            # Show the error message from code evaluation
-            println("✗ $(result.message)")
-            handle_incorrect_answer(state)
-        end
-    elseif result == true
-        println("✓ Correct!")
-        println()
-        state.progress.correct_answers += 1
-        advance_to_next_question(state)
-    else
-        println("✗ Not quite right.")
-        handle_incorrect_answer(state)
-    end
-
 end
+#=
+# Regular questions
+state.current_attempts += 1
+
+
+result = check_answer(input, q.answer, q.type)
+
+if q.type == :code && result isa NamedTuple
+    if result.correct
+        println("Correct! $(q.type == :code ? "Great work!" : "")")
+        println()
+        state.progress.correct_answers += 1
+        advance_to_next_question(state)
+    else
+        println("$(result.message)")
+        handle_incorrect_answer(state)
+    end
+elseif result == true || (result isa Bool && result)
+    println("Correct!")
+    println()
+    state.progress.correct_answers += 1
+    advance_to_next_question(state)
+else
+    println("Not quite right.")
+    handle_incorrect_answer(state)
+end
+=#
+
 
 """
     handle_incorrect_answer(state)
