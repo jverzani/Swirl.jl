@@ -236,7 +236,18 @@ function display_lesson_menu(state::ReplLessonState)
     for (i, lesson) in enumerate(state.course.lessons)
         progress = get_lesson_progress(state.course.name, lesson.name)
         status = progress.completed ? "✓" : " "
-        current = (i == state.current_lesson_idx) ? " ← just completed" : ""
+
+        # Show appropriate marker based on lesson state
+        if i == state.current_lesson_idx
+            if progress.completed
+                current = " ← just completed"
+            else
+                current = " ← in progress"
+            end
+        else
+            current = ""
+        end
+
         push!(lines, "$i. [$status] $(lesson.name)$current")
     end
     body = """
@@ -329,17 +340,18 @@ function swirl_repl_handler(input::AbstractString)
                 first_lesson = selected_course.lessons[1]
 
                 # Find the most recently completed lesson to show the indicator correctly
-                last_completed_idx = 0
+                last_lesson_idx = 0
                 for (i, lesson) in enumerate(selected_course.lessons)
                     progress = get_lesson_progress(selected_course.name, lesson.name)
-                    if progress.completed
-                        last_completed_idx = i  # Track the highest completed lesson index
+                    # Track if lesson is completed OR has been started (current_question > 1)
+                    if progress.completed || progress.current_question > 1
+                        last_lesson_idx = i
                     end
                 end
 
                 lesson_state = ReplLessonState(
                     selected_course,
-                    last_completed_idx,
+                    last_lesson_idx,
                     first_lesson,
                     LessonProgress(selected_course.name, first_lesson.name),
                     1,
@@ -380,6 +392,7 @@ function swirl_repl_handler(input::AbstractString)
             # Reset progress and start from beginning
             state.progress = LessonProgress(state.course.name, state.lesson.name)
             state.current_question_idx = 1
+            state.was_previously_completed = false  # Clear completion flag when restarting
             state.waiting_for_restart_confirmation = false
 
             # println("\n" * "="^60)
@@ -635,6 +648,7 @@ function handle_restart(state::ReplLessonState)
     println("\n🔄 Restarting lesson...")
     state.current_question_idx = 1
     state.progress = LessonProgress(state.course.name, state.lesson.name)
+    state.was_previously_completed = false
     state.lesson_complete = false
     display_question(state)
 end
@@ -763,13 +777,44 @@ function process_answer(state::ReplLessonState, input::AbstractString)
 
     # Regular questions
     state.current_attempts += 1
-    result = check_answer(input, q)
 
-    # Determine if answer is correct
-    res = isa(result, NamedTuple) ? result.correct : result
+    # For CodeQ questions, evaluate and show the result first (like REPL behavior)
+    if isa(q, CodeQ)
+        eval_result = safe_eval(input)  # Evaluate
+
+        if !eval_result.success
+            # Evaluation failed
+            println("✗ Error: $(eval_result.error)")
+            handle_incorrect_answer(state)
+            return
+        end
+
+        # Show result (like REPL) - suppress 'nothing'
+        if eval_result.result !== nothing
+            println(eval_result.result)
+        end
+
+        # Check if result matches expected answer 
+        expected_answer = q.answer
+        if eval_result.result == expected_answer
+            result = (correct=true, message="")
+        elseif typeof(eval_result.result) == typeof(expected_answer)
+            # Right type but wrong value
+            result = (correct=false, message="Not quite. You got $(eval_result.result), but the expected answer is $(expected_answer)")
+        else
+            result = (correct=false, message="Your code produced $(eval_result.result) (type: $(typeof(eval_result.result)))")
+        end
+
+        res = result.correct
+    else
+        # For non-code questions, use dispatch-based check_answer
+        result = check_answer(input, q)
+        res = isa(result, NamedTuple) ? result.correct : result
+    end
 
     if res == true
         if isaquestion(q)
+            println()
             println("✓ Correct!")
             println()
             state.progress.correct_answers += 1
