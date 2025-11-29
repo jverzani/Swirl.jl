@@ -26,8 +26,8 @@
 #
 #' * `expr_uses_func`: Test that a particular function has been used.
 #'
-# --> contains_expression_validator("sin(_)") or
-#     contains_expression_validator("sin") or
+# --> has_expression_validator("sin(_)") or
+#     has_expression_validator("sin") or
 #
 #' * `func_of_newvar_equals`: Test the result of a computation such as \code{mean(newVar)} applied to a specific (user-named) variable created in a previous question.
 #'
@@ -46,22 +46,26 @@
 #' * `var_is_a`: Test that the \emph{value} of the expression is of a specific `class`.
 #'
 # ---> same_type_validator(SomeType)
-
+# <<<<<<<<<<<<<<<<<<<<
+#
 # Should export, or make easy to import, or have Validator module, or ...
 # using Swirl:
 # using Swirl:
 #    InputValidator,                # Validate input
 #    OutputValidator,               # validate successful output
-#    same_expression_validator,     # expressions are equal
-#    contains_expression_validator, # user expression has expression match
-#    match_validator,               # regular expression match with input
+#    same_expression_validator,     # input, as expression, is equal to expression
+#    has_expression_validator,      # input, as expression, has subexpression
+#    match_input_validator,         # match(re, input), as string
 #    same_value_validator,          # output has correct value
+#    in_interval_validator,         # a ≤ output ≤ b
+#    in_range_validator,            # output ∈ answer
 #    same_type_validator,           # output has correct type
-#    creates_var_validator,         # output leave variable in Main
+#    match_output_validator         # match(re, output)
+#    creates_var_validator,         # output leaves variable in Main
 #    creates_function_validator     # output is function and evaluates on specified values
 
 """
-    CodeValidator
+    AbstractValidator
 
 Abstract class for a validator.
 
@@ -75,18 +79,19 @@ Validators may be combined using:
 
 * the `∪` infix operator (typed with `\\cup[tab]`)  if *any* of validators need to be correct, for the combined one to be.
 
-The main validator subtypes are `InputValidator` and `OutputValidator` to specialize on just the input or output values.
+The main validator subtypes are `InputValidator` and `OutputValidator` to specialize on just the user input or its output value.
 """
-abstract type CodeValidator end
+abstract type AbstractValidator end
 
 # Composed Validators must `all` be correct
 # Validators can be composed with ∘ `\circ[tab]`
 """
-    ComposedCodeValidator
+    ComposedValidator
 
 Struct to hold composed validators.
 
-The infix composition operator (`\\circ[tab]`) can be used to compose validators. Validators are called from right to left, as with function composition.
+A validator comprised of a collection of validators. This validator is correct if **all** of the validators is correct. The infix union operator `\\circ[tab]` can be used to combine validators.
+
 
 # Example
 ```
@@ -100,19 +105,19 @@ CodeQ(text = () -> md"Enter a positive Integer",
       )
 ```
 """
-struct ComposedCodeValidator{T}
+struct ComposedValidator{T} <: AbstractValidator
     Vs::T
 end
 
-Base.:∘(v1::CodeValidator, v2::CodeValidator) = ComposedCodeValidator((v1, v2))
-Base.:∘(v1::CodeValidator, v2::ComposedCodeValidator) =
-    ComposedCodeValidator((v1, v2.Vs...))
-Base.:∘(v1::ComposedCodeValidator, v2::CodeValidator) =
-    ComposedCodeValidator((v1.Vs..., v2))
-Base.:∘(v1::ComposedCodeValidator, v2::ComposedCodeValidator) =
-    ComposedCodeValidator((v1.Vs..., v2.Vs...))
+Base.:∘(v1::AbstractValidator, v2::AbstractValidator) = ComposedValidator((v1, v2))
+Base.:∘(v1::AbstractValidator, v2::ComposedValidator) =
+    ComposedValidator((v1, v2.Vs...))
+Base.:∘(v1::ComposedValidator, v2::AbstractValidator) =
+    ComposedValidator((v1.Vs..., v2))
+Base.:∘(v1::ComposedValidator, v2::ComposedValidator) =
+    ComposedValidator((v1.Vs..., v2.Vs...))
 
-(v::ComposedCodeValidator)(input, question, result) = begin
+(v::ComposedValidator)(input, question, result) = begin
     for Vᵢ in reverse(v.Vs)
         correct, message = Vᵢ(input, question, result)
         !correct && return (correct, message)
@@ -127,7 +132,7 @@ end
 """
     OneOfManyValidator
 
-A validator comprised of a collection of validators. This validator is correct if any of the validators is correct. the infix union operator `\\cup[tab]` can be used to combine validators.
+A validator comprised of a collection of validators. This validator is correct if **any** of the validators is correct. The infix union operator `\\cup[tab]` can be used to combine validators.
 
 # Example
 ```
@@ -135,14 +140,14 @@ A validator comprised of a collection of validators. This validator is correct i
 reduce(∪, same_expression_validator.(("y=2x", "y=3x")))
 ```
 """
-struct OneOfManyValidator <: CodeValidator
+struct OneOfManyValidator <: AbstractValidator
     Vs
 end
 
-Base.:∪(v1::CodeValidator, v2::CodeValidator) = OneOfManyValidator((v1, v2))
-Base.:∪(v1::CodeValidator, v2::OneOfManyValidator) =
+Base.:∪(v1::AbstractValidator, v2::AbstractValidator) = OneOfManyValidator((v1, v2))
+Base.:∪(v1::AbstractValidator, v2::OneOfManyValidator) =
     OneOfManyValidator((v1, v2.Vs...))
-Base.:∪(v1::OneOfManyValidator, v2::CodeValidator) =
+Base.:∪(v1::OneOfManyValidator, v2::AbstractValidator) =
     OneOfManyValidator((v1.Vs..., v2))
 Base.:∪(v1::OneOfManyValidator, v2::OneOfManyValidator) =
     OneOfManyValidator((v1.Vs..., v2.Vs...))
@@ -161,7 +166,7 @@ end
 
 # The default CodeQuestion validator
 """
-    EqualValueCodeValidator <: CodeValidator
+    EqualValueValidator <: AbstractValidator
 
 Compare value of command to specific expected value
 
@@ -170,34 +175,31 @@ Compare value of command to specific expected value
 
 This is the default validator for `CodeQ` questions.
 """
-struct EqualValueCodeValidator <: CodeValidator
-    answer_value # defaults to question. answer
+struct EqualValueValidator <: AbstractValidator
+    answer_value # defaults to question.answer
     cmp          # defaults to isequal
 end
-EqualValueCodeValidator(;answer = nothing, cmp = isequal) = EqualValueCodeValidator(answer, cmp)
-DefaultCodeValidator = EqualValueCodeValidator
+EqualValueValidator(;answer = nothing, cmp = isequal) = EqualValueValidator(answer, cmp)
 
-(v::EqualValueCodeValidator)(user_answer, question::CodeQuestion, eval_result) = begin
-
-    user_answer = String(user_answer)
+(v::EqualValueValidator)(input, question, result) = begin
 
     # Check if result matches expected
     expected_answer = isnothing(question.answer) ? v.answer_value : question.answer
 
-    if v.cmp(eval_result.result, expected_answer)
+    if v.cmp(result.result, expected_answer)
 
         correct = true
         message = ""
 
-    elseif typeof(eval_result.result) == typeof(expected_answer)
+    elseif typeof(result.result) == typeof(expected_answer)
 
         correct = false
-        message="Not quite. You got $(eval_result.result) the right type of answer, but not the expected answer."
+        message = "Not quite. You got $(result.result) the right type of answer, but not the expected answer."
 
     else
 
-        correct=false
-        message="Your code produced $(eval_result.result) (type: $(typeof(eval_result.result)))"
+        correct = false
+        message = "Your code produced $(result.result) (type: $(typeof(result.result)))"
 
     end
 
@@ -219,7 +221,7 @@ Validator to check input string
 
 # Example
 ```
-# match code by regular expression
+# match code by regular expression (see `match_input_validator`)
 CodeQ(text = md"Enter any code that contains `exp`",
       answer = "Just any expression with `exp` would work",
       hint   = "Write an expression",
@@ -229,7 +231,7 @@ CodeQ(text = md"Enter any code that contains `exp`",
                                  end))
 ```
 """
-struct InputValidator{F,S} <: CodeValidator
+struct InputValidator{F,S} <: AbstractValidator
     f::F
     message::S
 end
@@ -243,12 +245,10 @@ InputValidator(f) = InputValidator(f, "Input is not correct")
     (;correct, message)
 end
 
-# These functions return validators.
-
 # util
 # Does expression have f as subexpression?
 # use (_) as wildcard
-function _matched(ex, f)
+function _has(ex, f)
     f == :(_) && return true
     ex == f && return true
     hasproperty(ex, :head) || return false
@@ -259,10 +259,24 @@ function _matched(ex, f)
     hasproperty(f,  :head) || return false
     (ex.head == f.head == :call) || return false
 
+
     ff,  fa... = f.args
-    exf == ff || return false
-    return all(_matched(eᵢ, fᵢ) for (eᵢ, fᵢ) ∈ zip(exa, fa))
+
+    if exf == ff # head matches, do all arguments?
+        for (i, exaᵢ) in enumerate(exa)
+            fᵢ = fa[i]
+            fᵢ == :(_) && return true
+            _has(exaᵢ, fᵢ) || return false
+        end
+        length(exa) == length(fa) && return true
+    end
+
+    # else recurse and see if any match
+    return any(_has(exaᵢ,f) for exaᵢ ∈ exa)
+
 end
+
+##--- These functions return validators.
 
 
 ## check if user expression is a match to answer using Meta.parse to normalize
@@ -274,8 +288,8 @@ function same_expression_validator(answer = nothing;
     f = (user_answer, question_answer) -> begin
         a = isnothing(answer) ? question_answer : answer
         input = Meta.parse(user_answer)
-        target =  isa(a, AbstractString) ? Meta.parse(a) :
-            Meta.parse.(a)
+        # answer can be given as a string or an expression
+        target =  isa(a, AbstractString) ? Meta.parse(a) : a
         correct =  isequal(input, target)
     end
 
@@ -284,21 +298,25 @@ end
 
 ## Does the input expression contain the answer expression
 # can  use _ as a wildcard for the answer
-# Thsi is a match in the expression tree---it isn't commutative or associative!
-function contains_expression_validator(answer=nothing;
-                                       message = "Expression does not contain the expression")
+# This is a match in the expression tree---it isn't commutative or associative!
+function has_expression_validator(answer=nothing;
+                                  message = "Input expression does not contain the expected expression")
+
     f = (input, question_answer) -> begin
         a = isnothing(answer) ? question_answer : answer
         pat = isa(a, String) ? Meta.parse(a) : a
         expr = Meta.parse(input)
-        _matched(expr, pat)
+        _has(expr, pat)
     end
+
     InputValidator(f, message)
+
 end
 
 ## Does input match given regular expression
-function match_validator(answer=nothing;
-                                       message = "Expression does not contain the expression")
+function match_input_validator(answer=nothing;
+                               message = "Expression does not contain the expression")
+
     f = (input, question_answer) -> begin
         pat = isnothing(answer) ? question_answer : answer
         if !isa(pat, Regex)
@@ -308,7 +326,9 @@ function match_validator(answer=nothing;
         m = match(pat, input)
         return !isnothing(m)
     end
+
     InputValidator(f, message)
+
 end
 
 
@@ -334,7 +354,7 @@ CodeQ(text = md"Enter a container with 4 elements",
                                   end))
 ```
 """
-struct OutputValidator{F,S} <: CodeValidator
+struct OutputValidator{F,S} <: AbstractValidator
     f::F
     message::S
 end
@@ -346,10 +366,12 @@ OutputValidator(f) = OutputValidator(f, "Output is incorrect")
     message = correct ? "" : v.message
 
     (;correct, message)
+
 end
 
 
 ## check if the output value matches via `cmp`, defaulting to `isequal`
+## cmp(value, answer)
 function same_value_validator(answer=nothing;
                               cmp=isequal,
                               message="Value does not match answer")
@@ -357,9 +379,33 @@ function same_value_validator(answer=nothing;
         a = isnothing(answer) ? question_answer : answer
         cmp(val, a)
     end
+
     OutputValidator(f, message)
 
 end
+
+# is value in [l,r] interval: l ≤ value ≤ r
+function in_interval_validator(answer=nothing;
+                            message="Not in interval")
+    f = (value, question_answer) -> begin
+        a = isnothing(answer) ? question_answer : answer
+        l, r= extrema(a)
+        return l ≤ value ≤ r
+    end
+
+    OutputValidator(f, message)
+end
+
+# is value in container (value ∈ answer)
+function in_range_validator(answer=nothing;
+                            message="Not in range")
+    f = (value, question_answer) -> begin
+        a = isnothing(answer) ? question_answer : answer
+        return value ∈ a
+    end
+    OutputValidator(f, message)
+end
+
 
 ## check if output type matches specific type via `isa(result, type)`
 ## use a Union if more than one.
@@ -370,7 +416,23 @@ function same_type_validator(answer=nothing;
         correct_type = isnothing(answer) ? question_answer : answer
         isa(result, correct_type)
     end
+
     OutputValidator(f, message)
+
+end
+
+# does value match regular expression?
+function match_output_validator(answer=nothing;
+                               message = "Answer does not match")
+    f = (result, question_answer) -> begin
+        a = isnothing(answer) ? question_answer : answer
+        re = !isa(a, Regex) ? Regex(a) : a
+        m = match(re, result)
+        return !isnothing(m)
+    end
+
+    OutputValidator(f, message)
+
 end
 
 ## check if command created variable (in Main)
@@ -381,7 +443,9 @@ function creates_var_validator(answer=nothing;
         var = Symbol(a)
         var ∈ names(Main)
     end
+
     OutputValidator(f, message)
+
 end
 
 # is the output a function *and*
@@ -403,7 +467,9 @@ function creates_function_validator(answer=nothing;
 
         return true
     end
+
     OutputValidator(f, message)
+
 end
 
 ## More code validators go here.

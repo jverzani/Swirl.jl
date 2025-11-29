@@ -13,9 +13,21 @@ abstract type OutputOnly <: AbstractQuestion end
 ## type for display with confirmation---but not a question
 abstract type HasPrompt <: AbstractQuestion end
 abstract type InputOutputOnly <: HasPrompt end
-
-## type for Questions
 abstract type QuestionType <: HasPrompt end
+
+# Question type trait indicating if question type should be scored
+isaquestion(::AbstractQuestion) = false
+isaquestion(::QuestionType) = true
+
+#=
+```
+AbstractQuestion
+     |        \
+  OutputOnly  HasPrompt
+               |       \
+        InputOutputOnly QuestionType
+```
+=#
 
 ## AbstractQuestion base methods
 """
@@ -33,18 +45,36 @@ end
 # Default: no additional display after text
 _show_question(q::AbstractQuestion) = nothing
 
-## HasPrompt base methods
-## process prompt
-function check_answer(input, question::HasPrompt)
-    if hasproperty(question, :validator) && !isnothing(question.validator)
-        question.validator(input, question) # not sure what to pass of question
-    else
-        _check_answer(input, question)
-    end
-end
 
 # OutputOnly questions always return true (no wrong answer)
 check_answer(input, ::OutputOnly) = true
+
+## HasPrompt base methods
+## process prompt
+function check_answer(input, question::HasPrompt)
+
+    result = safe_eval(input)
+
+    if !result.success
+        correct = false
+        message = "Error: $(result.error)"
+        return (; correct, message)
+    end
+
+    display_result(question, result)
+
+    if hasproperty(question, :validator) && !isnothing(question.validator)
+        validator = question.validator
+    else
+        validator = default_validator(question)
+    end
+
+    validator(input, question, result)
+
+end
+
+display_result(::HasPrompt,_) = nothing
+default_validator(::HasPrompt) = same_value_validator()
 
 ## QuestionType base methods
 function _show_hint(q::QuestionType)
@@ -55,16 +85,11 @@ function _show_hint(q::QuestionType)
     end
 end
 
-# Question type trait indicating if question type should
-# be scored
-isaquestion(::AbstractQuestion) = false
-isaquestion(::QuestionType) = true
 
 ## -- OutputOnly
 ## Doesn't wait for a prompt
 
 # for a message
-
 """
     MessageQ <: OutputOnly
 
@@ -102,36 +127,12 @@ Abstract base type for questions that require code execution.
 """
 abstract type CodeQuestion <: QuestionType end
 
-include("code_validators.jl")
-
-# Check answer for code questions
-# calls default code validator to test if output is equal
-function check_answer(input::AbstractString, question::CodeQuestion)
-
-    eval_result = safe_eval(input)  # Evaluate
-
-    # this mixes up answer checking with output
-    # I'd push this off to runner.jl
-    if !eval_result.success
-        correct = false
-        message = "Evaluation error: $(eval_result.error)"
-        return (;correct, message)
+# CodeQuestions display evaluated result
+function display_result(question::CodeQuestion, result)
+    if result.result !== nothing
+        println(result.result)
     end
-
-    # This is a bit different but, I'd also put into runner
-    # Show result (like REPL) - suppress 'nothing'
-    if eval_result.result !== nothing
-        println(eval_result.result)
-    end
-
-    validator = (hasproperty(question, :validator) && !isnothing(question.validator)) ?
-        question.validator :
-        DefaultCodeValidator()
-
-    return validator(input, question, eval_result)
-
 end
-
 
 # Single step code question
 """
@@ -163,6 +164,8 @@ struct CodeQ <: CodeQuestion
     validator
     setup
 end
+
+default_validator(::CodeQ) = EqualValueValidator()
 
 CodeQ(; text="", answer="", hint="", validator=nothing, setup="") =
     CodeQ(text, answer,  hint, validator, setup)
@@ -282,31 +285,29 @@ struct StringQ <: QuestionType
     validator
     setup
 end
+
+
 StringQ(; text="", answer="", hint="", validator=nothing, setup="") =
     StringQ(text, answer, hint, validator, setup)
 
-function check_answer(user_input, question::StringQ)
+function default_validator(question::StringQ)
+    (input, question, result) -> begin
 
-    eval_result = safe_eval(user_input)
-    if !eval_result.success
-        return (correct=false, message="Error: $(eval_result.error)")
-    elseif !isa(eval_result.result, AbstractString)
-        return (correct=false, message="Error: answer is not a string")
-    end
+        if !isa(result.result, AbstractString)
+            return (correct=false, message="Error: answer is not a string")
+        end
 
-    user_answer = eval_result.result
-    answer = question.answer
+        if isa(question.answer, AbstractString)
+            validator = same_value_validator(question.answer)
+        elseif isa(question.answer, Regex)
+            validator = match_value_validator(question.answer)
+        else
+            return question.answer(result.result)
+        end
 
-    if isa(answer, AbstractString)
-        return user_answer == answer
-    elseif isa(answer, Regex)
-        m = match(answer, user_answer)
-        return isnothing(m) ? false : true
-    else # assume callable
-        return answer(user_answer)
+        return validator(input, question, result)
     end
 end
-
 
 """
     NumericQ(text, answer, hint, [validator]) <: QuestionType
@@ -326,24 +327,22 @@ NumericQ(; text="", answer=Inf, hint="", validator=nothing, setup="") =
     NumericQ(text, answer, hint, validator, setup)
 
 # default is user_answer == answer
-function check_answer(user_answer, question::NumericQ)
+function default_validator(question::NumericQ)
+    (input, question, result) -> begin
 
-    eval_result = safe_eval(user_answer)
-    if !eval_result.success
-        return (correct=false, message="Error: $(eval_result.error)")
-    elseif !isa(eval_result.result, Number)
-        return (correct=false, message="Error: answer is not a number")
-    end
+        if !isa(result.result, Number)
+            return (correct=false, message="Error: answer is not a number")
+        end
 
+        if isa(question.answer, Number)
+            validator = same_value_validator(question.answer)
+        elseif isa(question.answer, Tuple)
+            validator = in_interval_validator(question.answer)
+        else
+            validator = in_range_validator(question.answer)
+        end
 
-    answer = question.answer
-    if isa(answer, Number)
-        return eval_result.result == answer
-    elseif isa(answer, Tuple)
-        a, b = extrema(answer)
-        return a ≤ eval_result.result ≤ b
-    else
-        return eval_result.result ∈ answer
+        return validator(input, question, result)
     end
 end
 
@@ -394,12 +393,16 @@ ChoiceQ(; text="", choices=[], answer=0, hint="", validator=nothing, setup="") =
     ChoiceQ(text, choices, answer, hint, validator, setup)
 
 function check_answer(user_input, question::ChoiceQ)
+    # is there another possible validator?
     try
         user_answer = parse(Int, user_input)
-        return user_answer == question.answer
+        correct = user_answer == question.answer
+        message = correct ? "" : "try again"
+        return (; correct, message)
     catch
-        println("Answer is the corresponding number for the item you wish to select")
-        return false
+        correct = false
+        message = "Answer is the corresponding number for the item you wish to select"
+        return (; correct, message)
     end
 end
 
@@ -435,12 +438,16 @@ MultipleChoiceQ(; text="", choices=String[], answer=Int[], hint="", validator=no
     MultipleChoiceQ(text, choices, answer, hint, validator, setup)
 
 function check_answer(user_input, question::MultipleChoiceQ)
+    # is there another possible validator?
     try
         user_answer = parse.(Int, split(user_input, r",\s*|\s+"))
-        return sort(user_answer) == sort(question.answer)
+        correct = sort(user_answer) == sort(question.answer)
+        message = correct ? "" : "try again"
+        return (; correct, message)
     catch
-        println("Please enter comma-separated numbers for your selections (e.g., '1,3,4')")
-        return false
+        correct = false
+        message = "Please enter comma-separated numbers for your selections (e.g., '1,3,4')"
+        return (; correct, message)
     end
 end
 
@@ -461,7 +468,7 @@ function _show_question(::LinkQ)
     println("Open link? (yes/no)", "")
 end
 
-function _check_answer(user_answer::AbstractString, question::LinkQ)
+function check_answer(user_answer::AbstractString, question::LinkQ)
     if !startswith(lowercase(user_answer), "n")
         run(`open $(question.link)`)
     end
